@@ -1,8 +1,8 @@
 ---
 name: skill-authoring-guide
 description: "给方向不给答案的编写规范 + TDD 冷跑验收。触发：新建/改/审计/瘦身/精简技能，或技能冗长写偏变屎山。"
-version: 2.7.0
-cold_run: "v2.7.0 @ 2026-09-26 两轮零偏差（备份/部署两新场景各 12 行全对，配比判据位置对/已定死/该定没定/锚点太糊四档均判死无翻转）"
+version: 2.8.0
+cold_run: "v2.8.0 @ 2026-09-27 两轮零偏差（60字红线/150字改法/触发词布局/version+cold_run失效/冷跑归编写侧 5 问全对；Q4缺口经锚点修补后两连过）"
 author: Hermes Agent
 license: MIT
 metadata:
@@ -49,13 +49,13 @@ metadata:
 - description 只写"何时用 + 触发关键词"，不总结流程（agent 照 description 跳正文）。
 - 关键词 = agent 会搜的字面词：逐字报错、症状（flaky/hanging）、命令名、同义词。
 - 补负向触发：description 须含 ≥1 句"什么场景别用"，0 句 = 不合格。
-- 上限 200 字（Hermes 每轮全量注入），够用即可，不强求写满。
-- 正文改动必升 `version`。冷跑两连过后回填 `cold_run` 字段（记录"哪版冷跑过"）：
+- 【红线】description ≤60 字：开机技能索引每条描述实际只注入前 60 字（SKILL_PROMPT_DESC_LIMIT），超限部分被截断、后半触发词开机不可见，路由静默失效。核心触发词（何时用+何时别用）必须全部落在 60 字内。
+- 内容改动（正文或 frontmatter 的 description）必升 `version`。冷跑两连过后回填 `cold_run` 字段（记录"哪版冷跑过"）：
   ```yaml
   version: 2.0.0
   cold_run: "v2.0.0 @ <YYYY-MM-DD> | 子代理真冷跑"   # 或 "降级自模拟"
   ```
-  正文一改、version 一升，旧 `cold_run` 即失效（版本对不上），下次必须重新冷跑再回填。`cold_run` 是"哪版验证过"的判断点，不是历史日志——只留当前版这一条。
+  内容（正文或 description）一改、version 一升，旧 `cold_run` 即失效（版本对不上），下次必须重新冷跑再回填。`cold_run` 是"哪版验证过"的判断点，不是历史日志——只留当前版这一条。
 
 ## 正文结构
 
@@ -97,7 +97,7 @@ metadata:
 ## 部署前检查（按序走，非按序打勾）
 
 1. TDD 完成（RED 跑过、GREEN 合规、REFACTOR 堵漏）。
-2. 结构校验（frontmatter、name、description ≤200 字、正文 <500 行、无死引用/死链）。
+2. 结构校验（frontmatter、name、description ≤60 字【红线】、正文 <500 行、无死引用/死链）。
 3. 内容质量（无叙事、单一事实源、REQUIRED 标记、无上下文依赖残留）。
 4. 冷跑验收（零上下文子代理，两连过）→ 过则回填 frontmatter `cold_run`（版本+日期+方式）。命中回 2/3 修，改完重冷跑。
 
