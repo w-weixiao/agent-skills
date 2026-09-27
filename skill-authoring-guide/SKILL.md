@@ -1,102 +1,102 @@
 ---
 name: skill-authoring-guide
-description: "Guidance for creating and maintaining agent skills. Use when writing a new skill, refactoring an existing one, or auditing a skill library. Triggers: 'write a skill', 'skill too verbose', 'skill needs cleanup', 'agent skill best practice', 'skill drift', 'skill bloat'."
+description: "给方向不给答案的技能编写规范 + TDD 冷跑验收。触发：新建/修改/审计/瘦身/精简技能，技能太冗长、写偏、变屎山。负面触发：全库审计走 skill-audit；单技能冷跑在编写侧当场做。"
 version: 1.0.0
 license: MIT
 metadata:
   tags: [skills, authoring, governance, standards, tdd]
 ---
 
-# Skill Authoring Guide
+# 技能编写指南
 
-## Core Principles (in priority order)
+## 总纲（按优先级）
 
-1. **Concise language (top priority)**: One word beats one sentence. Delete causal explanations, redundancy, and jargon. Ask of every paragraph: "Is this worth the token cost?"
-2. **Cold-run acceptance (second priority)**: After creating or editing a skill, always run a cold test — a zero-context sub-agent executes the task using only the skill doc. If it drifts, fix the judgment anchors in the skill itself; do not add hard rules. Two consecutive clean passes = done. See `references/coldrun-subagent.md` for the sub-agent template.
-3. **Give direction, not answers**: Only lock in things that genuinely must not change (invariants, fixed parameters, hard node order, response format). For everything else, give a judgment anchor and let the model reason it out in context.
-   **Ratio criterion (per rule)**: Ask "If I delete this line, can a zero-context model still get the right answer from the remaining doc?"
-   1. Active action can be inferred correctly → position is right, leave it.
-   2. Cannot be inferred, but the line already carries a concrete value (number / path / command / parameter, including threshold-like numbers; a wrong value usually shows as an observable failure) → already fixed, leave it.
-   3. Cannot be inferred, and the line carries no value → split by surface form:
-      - **Should be fixed but isn't** (the sentence asks the model to pick a value, e.g. "choose optimal params / pick the right tier"): value has a source in the same doc (some line or reference) → fix it to that value; no source → leave it, mark "needs verification: <this line>" in the decision table, do not edit the doc.
-      - **Anchor too vague** (the sentence only points to a source, e.g. "params = recipe / see recipe"): sharpen to "follow <doc> section X (value = <concrete>)" — cite the value, not just the file.
-4. **Anchors must be sharp**: Write to the point where the model can execute the judgment directly. Never write "params = recipe" type vague pointers.
-5. **Troubleshooting: linear diagnosis flow, not "symptom → conclusion" lookup table**: Write "check X first, then Y" as a fixed sequence. New errors not in the table are still diagnosed by following that sequence. Do not memorize conclusions.
+1. **语言简练（第一优先级）**：能一词不说一句；删因果解释、删冗余、删黑话。每段先问"这段值不值得 token 成本"。
+2. **冷跑验收（第二优先级）**：建/改完必冷跑（零上下文子代理只读文档执行），偏了改判断锚点本身、不加死规则；两连过才收工。做法+子代理模板见 `references/coldrun-subagent.md`。
+3. **给方向，不给答案**：只固化"确实不能变"的（不变量、固定参数、硬性节点顺序、回复格式），其余给判断锚点让模型现推。
+   **配比判据（逐条）**：问"删掉这条，零上下文模型照剩余文档——推得对？"
+   1. 主动作推得对 = 位置对，不动。
+   2. 推不出、但这行已带值（具体数/路径/命令/参数，含阈值类数字；值错通常表现为可观察故障如报错/OOM）= 已定死，不动。
+   3. 推不出、且这行不带值 = 按句面形式两分（标签进决策表），不加新条：
+      - **该定没定**（句在让模型选值，如"挑最优参数/选合适档位"）：值在同文档内有出处（某行或某 reference）→ 定死为该值；无出处 → 不定死，原句保留，决策表标"待核实：&lt;此行&gt;"，不改正文。
+      - **锚点太糊**（句只转指来源，如"参数=配方/见配方"）：补锐利成"按 &lt;文档&gt; 的 X 节执行（值=具体值）"——引具体值，不只指文件让人自去查。
+4. **锚点要锐利**：写到能直接执行判断（见正文写作规范"判断锚点要锐利"），不写"参数=配方"这种模糊句。
+5. **故障排查用线性定位流程，不用"症状→结论"速查表**：写"先看哪、再看哪"的固定顺序，表外新错误也照顺序查，不背结论。
 
-## Workflow (Write → Audit → Cold-run Loop)
+## 工作流程（编写 → 审计 → 冷跑 回路）
 
-1. **Start**: New or edited skill → load this guide.
-2. **Write**: TDD (RED → GREEN → REFACTOR). Concise, sharp anchors, linear diagnosis, de-vagueness.
-3. **Audit**: Run `skill-audit` (or this guide's 9 checks) against the skill.
-4. **Judge**: All checks pass AND ratio (fixed-where-should-be / sharp-where-should-be-thoughtful) is right?
-   - Pass → backfill `cold_run` field in frontmatter, done.
-   - Fail → back to "Write", fix the judgment anchors themselves (do not add hard rules) → two clean cold-runs → back to "Audit".
+1. **起**：新建/改技能 → 加载本规范。
+2. **写**：TDD（RED→GREEN→REFACTOR）；语言简练、锚点锐利、线性定位、去模糊。
+3. **审**：`skill-audit` 调本规范当判据核对（9 检查项 + 读 `cold_run`）。
+4. **判**：判据全过 & 配比（该定死定死、该放思考给锐锚点）对？
+   - 合格 → 回填 `cold_run`，收工。
+   - 不合格 → 回"写"按规范改判断锚点本身（不加死规则）→ 冷跑两连过 → 回"审"。
 
-> Cold-runs belong to the **authoring side** (TDD step 4, before delivery); `skill-audit` only *reads* `cold_run`, it does not re-run.
+> 冷跑归**编写侧**（TDD 第 4 步，交活前跑）；`skill-audit` 只读 `cold_run`、不重跑。
 
-## When to Write a Skill
+## 何时写技能
 
-- **Write**: technique not intuitive, cross-project reuse, universal pattern.
-- **Don't write**: one-off solution, standard practice already documented elsewhere, mechanical constraint enforceable by regex / validation.
-- **One skill, one job**: skill = single main flow; a separable sub-step (periodic maintenance, off-main-path task) = mixed responsibility → not compliant, split out or delete.
+- 写：技巧不直觉、跨项目复用、模式普适。
+- 不写：一次性方案、别处已文档化的标准实践、能用校验/正则强制的机械约束。
+- 一技能一职责：技能=单一主流程；含可分离的子步骤（周期性维护/主路径外子任务）= 职责混杂，判不合格，建议拆出或删。
 
-## Frontmatter
+## frontmatter
 
-- `description`: only "when to use + trigger keywords". Do not summarize the process (the agent routes on `description` and skips the body).
-- Keywords = literal words the agent will search for: verbatim error messages, symptoms (flaky / hanging), command names, synonyms.
-- Negative triggers: `description` must contain ≥1 sentence about "what NOT to use for". 0 sentences = not compliant.
-- Cap: 200 characters (injected into every turn), write enough, do not pad to the limit.
-- Body changes require a `version` bump. After two clean cold-runs, backfill the `cold_run` field:
+- description 只写"何时用 + 触发关键词"，不总结流程（agent 照 description 路由，不读正文）。
+- 关键词 = agent 会搜的字面词：逐字报错、症状（flaky/hanging）、命令名、同义词。
+- 补负向触发：description 须含 ≥1 句"什么场景别用"，0 句 = 不合格。
+- 上限 200 字（每轮全量注入），够用即可，不强求写满。
+- 正文改动必升 `version`。冷跑两连过后回填 `cold_run` 字段（记录"哪版冷跑过"）：
   ```yaml
   version: 1.0.0
-  cold_run: "v1.0.0 @ <YYYY-MM-DD> | sub-agent cold-run"
+  cold_run: "v1.0.0 @ <YYYY-MM-DD> | 子代理真冷跑"   # 或 "降级自模拟"
   ```
-  Bump version + one edit to the body → the old `cold_run` is stale (version mismatch) → must re-cold-run before next backfill. `cold_run` is a "which version was verified" marker, not a history log — keep only the current version's entry.
+  正文一改、version 一升，旧 `cold_run` 即失效（版本对不上），下次必须重新冷跑再回填。`cold_run` 是"哪版验证过"的判断点，不是历史日志——只留当前版这一条。
 
-## Body Structure
+## 正文结构
 
-- Main file = index + flow (< 500 lines). Move heavy reference material (100+ line API tables / pricing tables / command sections) to `references/`. Reusable code → `scripts/`. Main file keeps only navigation lines.
-- Organize by process node, imperative voice (what to do + judgment point), no causal explanations.
-- Troubleshooting: linear diagnosis flow (check X first, then Y, fixed order), not "symptom → conclusion" lookup. New errors not in table: follow the same order. Do not memorize.
+- 主文件 = 索引 + 流程（&lt;500 行），大块参考（100+ 行 API 表/定价表/命令节）移 `references/`，可复用代码移 `scripts/`，正文只留导航行。
+- 按流程节点组织，正向表达（做什么 + 判断点），不写因果解释。
+- 故障排查用**线性定位流程**（先看哪、再看哪的固定顺序），不用"症状→结论"速查表；表外新错照顺序查，不背结论。
 
-## Writing Conventions (one line each, no elaboration)
+## 写作规范（每条一句，不展开）
 
-- Imperative: "Extract text", not "I will / you should".
-- Give direction not answers: write "what to do + judgment point", delete "why" causal explanations.
-- Judgment anchors sharp: write to the point where the model can execute the judgment directly (e.g. "grep the line containing X from process list, verify all expected params are present"). Never write "params = recipe".
-- De-vagueness: no "if needed / optional / ideally". Write "always X" or "only when Y, do X".
-- Plain language: no jargon ("smoke test" → "first-words verification").
-- Minimize scripts / py: if a plain shell command works directly, don't wrap it. Scripts only for pure mechanical batch work.
-- Delete what the model already knows; do not re-teach what the agent reliably does.
-- One excellent example > many mediocre ones.
-- No narrative ("last time because X we did Y" → "do Y because X"). No date stamps.
-- Do not document command flags. Write "run `--help`".
-- Cross-skill references: use `**REQUIRED SUB-SKILL:**` marker, not vague "see xxx".
-- Script stderr must be human-readable and specific ("file X not found, check path Y"), not a bare "failed".
+- 祈使句："提取文本"，不写"我会/你应该"。
+- 给方向不给答案：写"做什么 + 判断点"，删"为什么"因果解释。
+- 判断锚点要锐利：写到能直接执行判断（如"取进程列表输出含 X 的那行，核对参数串是否都在"），不写"参数=配方"这种模糊句。
+- 去模糊语气：不写"若要/可选/最好"，写"一律 X"或"仅在 Y 时 X"。
+- 术语白话：不用黑话（"冒烟"→"出字验证"）。
+- 少用脚本：能 `ps`/`pkill`/`curl` 直执的不包脚本；脚本只留给纯机械批处理。
+- 删掉模型本来就会的；agent 稳定做对的事不重复教。
+- 一个绝佳示例 > 多个平庸示例。
+- 不写叙事（"上次因为 X 做了 Y" → "做 Y，因为 X"），去日期戳。
+- 命令参数不写文档，写"跑 `--help`"。
+- 跨技能引用用 `**REQUIRED SUB-SKILL:**` 标记，不用含糊"见 xxx"。
+- 脚本报错必须人话且具体（"文件 X 不存在，检查路径 Y"），不写笼统 "failed"。
 
-## TDD Process
+## TDD 流程
 
-1. **RED**: Before writing the skill, let an agent run the scenario without it. Record how it fails. Execution = zero-context sub-agent (e.g. `delegate_task` or equivalent) runs the task with the user's original wording and reports the failure verbatim / broken steps. Never write a skill you haven't watched fail.
-2. **GREEN**: Write rules only for the specific failures the baseline exposed. Do not add rules for hypothetical cases.
-3. **REFACTOR**: Agent finds a new loophole → add an explicit countermeasure, retest until airtight.
-4. **Cold-run acceptance**: Zero-context sub-agent executes the skill doc only, checks for drift; if drifted, **fix the judgment anchor itself** (sharpen it), do not add hard rules to block. Two consecutive clean passes = done; pass → backfill frontmatter `cold_run` (version + date + method). See `references/coldrun-subagent.md`.
+1. **RED**：无技能时让 agent 跑场景，记录它怎么失败。执行方式=零上下文子代理（零背景的新会话/新代理）照"用户原话"跑一遍任务，回报失败原文/断链步骤。没看它失败过不写技能。
+2. **GREEN**：只针对基线暴露的具体失败写规则，不为假想情况加码。
+3. **REFACTOR**：agent 找到新借口 → 加显式对策，重测到无懈可击。
+4. **冷跑验收**：零上下文子代理只读文档执行，看它偏没偏；偏了**改判断锚点本身**（补锐利），不用加死规则去堵。两连过才收工；过则回填该技能 frontmatter `cold_run`（版本+日期+方式）。做法+子代理模板见 `references/coldrun-subagent.md`。
 
-**Form match** (pick the right writing style; do not apply mechanically):
+**形式匹配**（选对写法，不对号入座）：
 
-| Failure type | Correct form | Wrong form |
+| 失败类型 | 正确写法 | 错误写法 |
 |---|---|---|
-| Skips rule under pressure | Prohibition + rationalization table + red flags | Soft guidance ("suggest…", "consider…") |
-| Output shape wrong | Positive recipe (describe what the output IS) | Prohibition list ("don't repeat", "don't narrate") |
-| Omits required item | Add REQUIRED slot in template | Prose reminder |
-| Behavior should vary by condition | Conditional bound to observable predicate | Unconditional rule + exemption clause |
+| 压力下跳过规则 | 禁令 + 借口表 + 红旗 | 软引导（"建议…""考虑…"） |
+| 输出形状不对 | 正面配方（说输出长什么样） | 禁令清单（"别重复""别叙述"） |
+| 漏必需项 | 模板里加 REQUIRED 槽 | 散文提醒 |
+| 行为该依条件变 | 条件绑可观察谓词 | 无条件规则 + 豁免条款 |
 
-## Pre-deployment Checks (walk in order, not tick in order)
+## 部署前检查（按序走，非按序打勾）
 
-1. TDD complete (RED ran, GREEN compliant, REFACTOR plugged).
-2. Structural validation (frontmatter, name, description ≤200 chars, body <500 lines, no dead links / dead references).
-3. Content quality (no narrative, single source of truth, REQUIRED markers present, no context-dependent residue).
-4. Cold-run acceptance (zero-context sub-agent, two clean passes) → backfill frontmatter `cold_run` (version + date + method). Hit 2/3 → fix, re-cold-run.
+1. TDD 完成（RED 跑过、GREEN 合规、REFACTOR 堵漏）。
+2. 结构校验（frontmatter、name、description ≤200 字、正文 &lt;500 行、无死引用/死链）。
+3. 内容质量（无叙事、单一事实源、REQUIRED 标记、无上下文依赖残留）。
+4. 冷跑验收（零上下文子代理，两连过）→ 过则回填 frontmatter `cold_run`（版本+日期+方式）。命中 2/3 修，改完重冷跑。
 
-## Community Sources (read on demand)
+## 社区来源（按需读）
 
-Five references under `references/`: coldrun-subagent (cold-run 4 steps + sub-agent template, use directly in step 4), obra-writing-skills (TDD method), mgechev-skills-best-practices (concise structure), anthropic-skill-authoring-best-practices (conciseness principle), agentskills-spec (open standard). Read when making boundary judgments; they do not enter resident context. When sources conflict with this doc, **this doc wins**; sources are for provenance of criteria, not body evidence.
+`references/` 下五份：coldrun-subagent（冷跑四步+子代理模板，②冷跑验收直接用）、obra-writing-skills（TDD 方法）、mgechev-skills-best-practices（精简结构）、anthropic-skill-authoring-best-practices（简洁原则）、agentskills-spec（开放标准）。边界判断时再读，不进常驻上下文。来源之间或来源与本文冲突时，**本文优先**；来源只作判据出处，不作正文依据。
